@@ -121,22 +121,28 @@ const AgricultureRecommendationForm = () => {
     })
     const router =useRouter()
 
-    const onSubmit = async (values: z.infer<typeof formSchema>) => {
-        // TODO: Implement backend integration
-        console.log('Form submitted with values:', values);
-        
-        // For now, show success message
-        toast('Form submitted successfully! AI recommendation will be generated based on your inputs.');
+const onSubmit = async (values: z.infer<typeof formSchema>) => {
+  try {
+    const res = await fetch("/api/form", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(values),
+    });
 
-        const fakeId = Date.now().toString()
+    if (!res.ok) throw new Error("Failed to submit");
 
-   
-    router.push(`/Chat/${fakeId}`)
-        
-        // Future: Call your ML recommendation API
-        // const recommendation = await generateCropRecommendation(values);
-        // redirect(`/recommendations/${recommendation.id}`);
-    }
+    const result = await res.json();
+    console.log("✅ Saved:", result);
+
+    toast.success("Form submitted successfully! AI recommendation will be generated.");
+
+    router.push(`/Chat/${result.submission._id}`);
+  } catch (error) {
+    console.error(error);
+    toast.error("Something went wrong. Please try again.");
+  }
+};
+
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-50 py-12 px-4">

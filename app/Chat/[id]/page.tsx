@@ -21,17 +21,16 @@ import { useParams, useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 
 interface Message {
-  id: string;
+  _id?: string;
+  role: 'user' | 'assistant';
   content: string;
-  sender: 'user' | 'bot';
-  timestamp: Date;
-  isLoading?: boolean;
+  createdAt: Date;
 }
 
-interface ChatPageProps {
-  params: {
-    id: string;
-  };
+interface Conversation {
+  _id: string;
+  messages: Message[];
+  submission: any;
 }
 
 const AgriChatPage: React.FC = () => {
@@ -42,59 +41,124 @@ const AgriChatPage: React.FC = () => {
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [formData, setFormData] = useState<any>(null);
 
-  const chatId = params?.id as string;
+  const submissionId = params?.id as string;
 
-  // Simulate loading and initial message
+  // Initialize conversation
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-      setMessages([
-        {
-          id: '1',
-          content: `Namaste! I'm Smart-Harvest AI, your agricultural companion for Jharkhand. I can help you with crop recommendations based on your soil test results, weather conditions, and local farming practices. How can I assist you today?`,
-          sender: 'bot',
-          timestamp: new Date()
-        }
-      ]);
-    }, 2000);
+    const initializeConversation = async () => {
+      if (!isSignedIn || !submissionId) {
+        setIsLoading(false);
+        return;
+      }
 
-    return () => clearTimeout(timer);
-  }, []);
+      try {
+        // First, try to get existing conversation
+        const existingConvo = await fetch(`/api/conversation?id=${submissionId}`);
+        
+        if (existingConvo.ok) {
+          const data = await existingConvo.json();
+          setMessages(data.messages);
+          setConversationId(data.conversation._id);
+          setFormData(data.conversation.submission);
+        } else {
+          // Create new conversation with initial AI message
+          console.log('Creating new conversation for submission:', submissionId);
+          
+          const response = await fetch('/api/conversation', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ submissionId })
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to create conversation');
+          }
+
+          const data = await response.json();
+          setMessages(data.messages);
+          setConversationId(data.conversation._id);
+          
+          // Fetch form data separately if needed
+          const formResponse = await fetch(`/api/form-submission/${submissionId}`);
+          if (formResponse.ok) {
+            const formData = await formResponse.json();
+            setFormData(formData.submission);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to initialize conversation:', error);
+        // Set fallback initial message
+        setMessages([
+          {
+            role: 'assistant',
+            content: 'Hello! I\'m Smart-Harvest AI, your agricultural companion for Jharkhand. I\'m ready to help you with farming advice and crop recommendations. How can I assist you today?',
+            createdAt: new Date()
+          }
+        ]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initializeConversation();
+  }, [isSignedIn, submissionId]);
 
   const handleSendMessage = async () => {
-    if (!inputValue.trim()) return;
+    if (!inputValue.trim() || isTyping) return;
 
     const userMessage: Message = {
-      id: Date.now().toString(),
+      role: 'user',
       content: inputValue,
-      sender: 'user',
-      timestamp: new Date()
+      createdAt: new Date()
     };
 
     setMessages(prev => [...prev, userMessage]);
     setInputValue('');
     setIsTyping(true);
 
-    // Simulate AI response with agricultural context
-    setTimeout(() => {
-      const responses = [
-        "Based on your location and soil conditions, I recommend considering these crops for the upcoming season. Let me analyze the weather patterns and soil data to provide more specific guidance.",
-        "That's a great question about crop selection! For Jharkhand's climate, I'd suggest focusing on crops that are well-suited to your soil type and the current weather forecast.",
-        "I understand your farming concern. Let me help you with practical advice based on local agricultural practices and current market conditions in Jharkhand.",
-        "For pest management in your area, here are some organic and sustainable approaches that work well with local crops and climate conditions.",
-        "Considering the monsoon patterns and your soil test results, I can suggest the most suitable crops and expected yield estimates for your farm."
-      ];
+    try {
+      const response = await fetch('/api/conversation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: inputValue,
+          conversationId: conversationId,
+          submissionId: submissionId
+        })
+      });
 
-      const botMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        content: responses[Math.floor(Math.random() * responses.length)],
-        sender: 'bot',
-        timestamp: new Date()
+      if (!response.ok) {
+        throw new Error('Failed to send message');
+      }
+
+      const data = await response.json();
+      
+      // Update messages with the latest from the server
+      setMessages(data.messages);
+      
+      // Update conversation ID if it's a new conversation
+      if (!conversationId) {
+        setConversationId(data.conversation._id);
+      }
+
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      
+      // Add error message
+      const errorMessage: Message = {
+        role: 'assistant',
+        content: 'I apologize, but I\'m having trouble processing your request right now. Please try again or check your internet connection.',
+        createdAt: new Date()
       };
-      setMessages(prev => [...prev, botMessage]);
+      
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
       setIsTyping(false);
-    }, 2000);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -155,6 +219,20 @@ const AgriChatPage: React.FC = () => {
     );
   }
 
+  if (!isSignedIn) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-emerald-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="p-4 bg-green-100 rounded-lg mb-4">
+            <Leaf className="h-12 w-12 text-green-600 mx-auto" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Please Sign In</h2>
+          <p className="text-gray-600">You need to be signed in to access the Smart-Harvest AI chat.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-emerald-50">
       <div className="flex flex-col h-screen">
@@ -203,43 +281,59 @@ const AgriChatPage: React.FC = () => {
             <div className="text-center">
               <div className="inline-flex items-center space-x-2 bg-white/60 backdrop-blur-sm px-4 py-2 rounded-full text-sm text-green-700 border border-green-200">
                 <MessageCircle size={14} />
-                <span>Consultation ID: {chatId}</span>
+                <span>Consultation ID: {submissionId}</span>
               </div>
             </div>
 
-            {/* Welcome Card */}
-            <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-2xl p-6 text-white">
-              <div className="flex items-center space-x-3 mb-4">
-                <div className="p-2 bg-white/20 rounded-lg">
-                  <Sprout className="h-6 w-6" />
+            {/* Form Data Summary (if available) */}
+            {formData && (
+              <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-2xl p-6 text-white">
+                <div className="flex items-center space-x-3 mb-4">
+                  <div className="p-2 bg-white/20 rounded-lg">
+                    <Sprout className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">Your Farm Profile</h3>
+                    <p className="text-green-100 text-sm">Based on your submitted information</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-semibold">Welcome to Smart-Harvest AI</h3>
-                  <p className="text-green-100 text-sm">Your AI-powered farming companion</p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div>
+                    <p className="text-green-200">Location</p>
+                    <p className="font-medium">{formData.district}</p>
+                  </div>
+                  <div>
+                    <p className="text-green-200">Farm Size</p>
+                    <p className="font-medium">{formData.farmSize} acres</p>
+                  </div>
+                  <div>
+                    <p className="text-green-200">Soil Type</p>
+                    <p className="font-medium">{formData.soilType}</p>
+                  </div>
+                  <div>
+                    <p className="text-green-200">Season</p>
+                    <p className="font-medium">{formData.season}</p>
+                  </div>
                 </div>
               </div>
-              <p className="text-green-100 text-sm leading-relaxed">
-                I can help you with crop recommendations, soil analysis, weather insights, pest management, 
-                and farming best practices specific to Jharkhand's climate and soil conditions.
-              </p>
-            </div>
+            )}
 
             {/* Messages */}
-            {messages.map((message) => (
+            {messages.map((message, index) => (
               <div
-                key={message.id}
-                className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                key={index}
+                className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
-                <div className={`flex items-start space-x-3 max-w-xs lg:max-w-md ${
-                  message.sender === 'user' ? 'flex-row-reverse space-x-reverse' : ''
+                <div className={`flex items-start space-x-3 max-w-xs lg:max-md ${
+                  message.role === 'user' ? 'flex-row-reverse space-x-reverse' : ''
                 }`}>
                   {/* Avatar */}
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                    message.sender === 'user' 
+                    message.role === 'user' 
                       ? 'bg-green-500' 
                       : 'bg-gradient-to-br from-green-500 to-green-600'
                   }`}>
-                    {message.sender === 'user' ? (
+                    {message.role === 'user' ? (
                       <User size={16} className="text-white" />
                     ) : (
                       <Leaf size={16} className="text-white" />
@@ -248,15 +342,15 @@ const AgriChatPage: React.FC = () => {
 
                   {/* Message Bubble */}
                   <div className={`px-4 py-3 rounded-2xl ${
-                    message.sender === 'user'
+                    message.role === 'user'
                       ? 'bg-green-500 text-white'
                       : 'bg-white shadow-sm border border-green-100'
                   }`}>
-                    <p className="text-sm leading-relaxed">{message.content}</p>
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
                     <p className={`text-xs mt-2 ${
-                      message.sender === 'user' ? 'text-green-100' : 'text-gray-400'
+                      message.role === 'user' ? 'text-green-100' : 'text-gray-400'
                     }`}>
-                      {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </p>
                   </div>
                 </div>
@@ -266,7 +360,7 @@ const AgriChatPage: React.FC = () => {
             {/* Typing Indicator */}
             {isTyping && (
               <div className="flex justify-start">
-                <div className="flex items-start space-x-3 max-w-xs lg:max-w-md">
+                <div className="flex items-start space-x-3 max-w-xs lg:max-md">
                   <div className="w-8 h-8 rounded-full flex items-center justify-center bg-gradient-to-br from-green-500 to-green-600">
                     <Leaf size={16} className="text-white" />
                   </div>
@@ -327,31 +421,25 @@ const AgriChatPage: React.FC = () => {
                   icon: Sprout, 
                   text: "Crop Recommendations", 
                   color: "text-green-600 bg-green-50 hover:bg-green-100",
-                  query: "I need crop recommendations for my farm in Jharkhand"
+                  query: "Based on my farm details, what crops do you recommend for this season?"
                 },
                 { 
                   icon: Cloud, 
                   text: "Weather Analysis", 
                   color: "text-blue-600 bg-blue-50 hover:bg-blue-100",
-                  query: "How will current weather affect my crops?"
+                  query: "How will current weather patterns affect my recommended crops?"
                 },
                 { 
                   icon: Thermometer, 
-                  text: "Soil Health Check", 
+                  text: "Soil Health", 
                   color: "text-orange-600 bg-orange-50 hover:bg-orange-100",
-                  query: "Help me understand my soil test results"
+                  query: "How can I improve my soil health based on the pH and nutrient levels?"
                 },
                 { 
                   icon: Droplets, 
-                  text: "Pest Management", 
+                  text: "Irrigation Tips", 
                   color: "text-red-600 bg-red-50 hover:bg-red-100",
-                  query: "How to prevent common pests in my crops?"
-                },
-                { 
-                  icon: MapPin, 
-                  text: "Local Farming Tips", 
-                  color: "text-purple-600 bg-purple-50 hover:bg-purple-100",
-                  query: "What are the best practices for farming in my district?"
+                  query: "What's the best irrigation schedule for my crops and water source?"
                 }
               ].map((action, index) => (
                 <button

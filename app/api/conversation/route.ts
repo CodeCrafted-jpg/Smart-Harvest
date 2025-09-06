@@ -48,6 +48,13 @@ export async function POST(req: Request) {
         messages: []
       });
 
+      // 🔥 ADD THIS: Update user's conversations array
+      await User.findByIdAndUpdate(
+        user._id,
+        { $push: { conversations: conversation._id } },
+        { new: true }
+      );
+
       // Get form submission data for context
       const formData = await FormSubmission.findById(submissionId);
       if (!formData) {

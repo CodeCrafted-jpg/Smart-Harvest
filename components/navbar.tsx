@@ -24,7 +24,7 @@ const Navbar: React.FC = () => {
         { label: 'Features', href: '#features', icon: <Shield size={16} /> },
         { label: 'About', href: '#about', icon: <Info size={16} /> },
         { label: ' Info', href: '#diseases', icon: <Heart size={16} /> },
-        { label: 'Data', href: '#prevention', icon: <Shield size={16} /> },
+        { label: 'Chats', href: '/previous', icon: <Shield size={16} /> },
         { label: 'Contact', href: '#contact', icon: <Users size={16} /> },
     ];
 
@@ -49,10 +49,16 @@ const Navbar: React.FC = () => {
         setIsMobileMenuOpen(false);
 
         // Smooth scroll to section
-        const element = document.querySelector(href);
-        if (element) {
-            element.scrollIntoView({ behavior: 'smooth' });
-        }
+        if (href.startsWith("#")) {
+    // 🔽 In-page anchor scroll
+    const element = document.querySelector(href);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth" });
+    }
+  } else {
+    // 🔽 Next.js route navigation
+    router.push(href);
+  }
     };
 
     // Function to generate unique chat ID and navigate

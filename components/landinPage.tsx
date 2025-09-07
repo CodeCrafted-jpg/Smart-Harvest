@@ -16,9 +16,11 @@ import {
   Globe,
   Clock,
   Phone,
-  Leaf
+  Leaf,
+  Sparkles
 } from 'lucide-react';
 import { useUser } from '@clerk/nextjs';
+import { redirect } from 'next/navigation';
 
 const containerVariants = {
   hidden: {},
@@ -111,23 +113,35 @@ const LandingPage: React.FC = () => {
       {/* Hero Section */}
       <motion.section
         id="home"
-        className="pt-24 pb-16 bg-[#F0FDF4] min-h-screen flex items-center"
+        className="relative pt-24 pb-20 bg-[#F0FDF4] min-h-screen flex items-center overflow-hidden"
         initial="hidden"
         whileInView="visible"
         viewport={{ once: true, amount: 0.18 }}
         variants={fadeInUp}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div className="text-center" variants={containerVariants} initial="hidden" animate="visible">
+        {/* Decorative background gradient blobs */}
+        <div className="absolute top-0 left-0 w-72 h-72 bg-green-200/40 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-pulse"></div>
+        <div className="absolute bottom-0 right-0 w-72 h-72 bg-emerald-300/40 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-pulse"></div>
+
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div
+            className="text-center"
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+          >
             <motion.div
-              className="inline-flex items-center space-x-2 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium text-[#059669] mb-8 shadow-lg"
+              className="inline-flex items-center space-x-2 bg-white/80 backdrop-blur-sm px-5 py-2 rounded-full text-sm font-medium text-[#059669] mb-8 shadow-lg border border-green-100"
               variants={pop}
             >
-              <Bot size={16} />
+              <Bot size={18} className="text-green-500" />
               <span>SIH25049 - AI-Driven Crop Recommendation</span>
             </motion.div>
 
-            <motion.h1 className="text-4xl md:text-6xl font-extrabold mb-6" variants={fadeInUp}>
+            <motion.h1
+              className="text-4xl md:text-6xl font-extrabold mb-6 leading-tight"
+              variants={fadeInUp}
+            >
               <span className="bg-gradient-to-r from-green-500 to-green-600 bg-clip-text text-transparent">
                 AI-Powered Crop Recommendation
               </span>
@@ -135,33 +149,37 @@ const LandingPage: React.FC = () => {
               <span className="text-[#1F2937]">Assistant for Jharkhand</span>
             </motion.h1>
 
-            <motion.p className="text-lg md:text-xl text-[#374151] mb-12 max-w-3xl mx-auto leading-relaxed" variants={fadeInUp}>
-              🌱 Get instant, localized crop recommendations—understand soil and weather conditions,
-              choose suitable crops, and follow pest & disease prevention steps — all from an intelligent
-              AI assistant trained on agricultural datasets.
+            <motion.p
+              className="text-lg md:text-xl text-[#374151] mb-12 max-w-3xl mx-auto leading-relaxed"
+              variants={fadeInUp}
+            >
+              🌱 Get instant, localized crop recommendations—understand soil and weather
+              conditions, choose suitable crops, and follow pest & disease prevention steps —
+              all from an intelligent AI assistant trained on agricultural datasets.
             </motion.p>
 
-            <motion.div className="flex flex-col sm:flex-row gap-6 justify-center items-center" variants={fadeInUp}>
+            <motion.div
+              className="flex flex-col sm:flex-row gap-6 justify-center items-center"
+              variants={fadeInUp}
+            >
               <motion.button
-                className="flex items-center space-x-2 bg-gradient-to-r from-green-500 to-green-600 text-white px-8 py-4 rounded-full font-semibold hover:from-[#047a56] hover:to-[#0ea06a] transform hover:scale-105 hover:-translate-y-1 transition-all duration-200 shadow-xl"
-                onClick={() => scrollToSection('#chat')}
+                className="flex items-center space-x-2 bg-gradient-to-r from-green-500 to-green-600 text-white px-8 py-4 rounded-full font-semibold shadow-xl hover:from-[#047a56] hover:to-[#0ea06a] transform hover:scale-105 hover:-translate-y-1 transition-all duration-300"
+                onClick={() => scrollToSection("#chat")}
                 aria-label="Start recommendation chat"
                 whileHover={{ scale: 1.03, y: -3 }}
                 whileTap={{ scale: 0.98 }}
-                transition={{ type: 'spring', stiffness: 300 }}
               >
                 <MessageCircle size={20} />
-                <span>{isSignedIn ? 'Start Recommendation' : 'Try Demo Chat'}</span>
+                <span>{isSignedIn ? "Start Recommendation" : "Try Demo Chat"}</span>
               </motion.button>
 
               <motion.button
-                className="flex items-center space-x-2 bg-white text-green-500 px-8 py-4 rounded-full font-semibold hover:bg-gray-50 transition-all duration-200 shadow-lg border border-gray-200"
-                onClick={() => scrollToSection('#features')}
+                className="flex items-center space-x-2 bg-white text-green-600 px-8 py-4 rounded-full font-semibold border border-gray-200 shadow-lg hover:bg-gray-50 hover:shadow-xl transition-all duration-300"
+                onClick={() => scrollToSection("#features")}
                 whileHover={{ scale: 1.03, y: -3 }}
                 whileTap={{ scale: 0.98 }}
-                transition={{ type: 'spring', stiffness: 300 }}
               >
-                <Heart size={20} />
+                <Heart size={20} className="text-green-500" />
                 <span>Explore Features</span>
                 <ArrowRight size={16} />
               </motion.button>
@@ -171,12 +189,28 @@ const LandingPage: React.FC = () => {
       </motion.section>
 
       {/* Stats Section */}
-      <motion.section className="py-16 bg-[#F0FDF4]" initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.12 }} variants={containerVariants}>
+      <motion.section
+        className="py-20 bg-gradient-to-b from-[#F0FDF4] to-white"
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, amount: 0.12 }}
+        variants={containerVariants}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div className="grid grid-cols-2 md:grid-cols-4 gap-8" variants={containerVariants}>
+          <motion.div
+            className="grid grid-cols-2 md:grid-cols-4 gap-8"
+            variants={containerVariants}
+          >
             {stats.map((stat, index) => (
-              <motion.div key={index} className="text-center" variants={fadeInUp}>
-                <div className="text-3xl md:text-4xl font-bold text-green-500 mb-2">
+              <motion.div
+                key={index}
+                className="relative bg-white rounded-2xl shadow-lg border border-green-100 p-6 text-center group hover:shadow-2xl transition-all duration-300"
+                variants={fadeInUp}
+              >
+                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 w-10 h-10 bg-green-100 text-green-600 flex items-center justify-center rounded-full shadow-md group-hover:bg-green-500 group-hover:text-white transition-all">
+                  <Sparkles size={18} />
+                </div>
+                <div className="text-3xl md:text-4xl font-bold text-green-600 mb-2">
                   {stat.number}
                 </div>
                 <div className="text-[#374151] font-medium">{stat.label}</div>
@@ -185,6 +219,7 @@ const LandingPage: React.FC = () => {
           </motion.div>
         </div>
       </motion.section>
+
 
       {/* Features Section */}
       <motion.section id="features" className="py-20 bg-white" initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.15 }} variants={containerVariants}>
@@ -331,7 +366,7 @@ const LandingPage: React.FC = () => {
               transition={{ type: 'spring', stiffness: 300 }}
             >
               <MessageCircle size={20} />
-              <span>Start Recommendation</span>
+              <span onClick={()=>redirect("/Form")}>Start Recommendation</span>
             </motion.button>
 
             <motion.button

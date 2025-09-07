@@ -1,9 +1,7 @@
 
-Got it 🚀 Let’s draft a professional README.md for your Smart Harvest project that matches your app branding, explains features, tech stack, and how to run it locally.
 
-Here’s a complete first version:
 
-🌱 Smart Harvest
+🌱 **Smart Harvest**
 
 AI-powered Agricultural Assistant
 Live Demo

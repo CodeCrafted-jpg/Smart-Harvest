@@ -9,14 +9,13 @@ import User from "@/models/User";
 import { CohereClient } from 'cohere-ai';
 
 const cohere = new CohereClient({
-  token: process.env.COHERE_API_KEY, // Add this to your .env.local
+  token: process.env.COHERE_API_KEY,
 });
 
 export async function POST(req: Request) {
   console.log("💬 Conversation API hit");
 
   try {
-    // Get authenticated user
     const clerkUser = await currentUser();
     if (!clerkUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -24,7 +23,6 @@ export async function POST(req: Request) {
 
     await dbConnect();
 
-    // Find user in database
     const user = await User.findOne({ clerkId: clerkUser.id });
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -35,62 +33,75 @@ export async function POST(req: Request) {
     let conversation;
 
     if (conversationId) {
-      // Continue existing conversation
+      // Continue existing conversation by conversationId
       conversation = await Conversation.findById(conversationId);
       if (!conversation || conversation.user.toString() !== user._id.toString()) {
         return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
       }
-    } else {
-      // Create new conversation
-      conversation = await Conversation.create({
-        user: user._id,
-        submission: submissionId,
-        messages: []
+    } else if (submissionId) {
+      // Try to find existing conversation by submissionId
+      conversation = await Conversation.findOne({ 
+        submission: submissionId, 
+        user: user._id 
       });
 
-      // 🔥 ADD THIS: Update user's conversations array
-      await User.findByIdAndUpdate(
-        user._id,
-        { $push: { conversations: conversation._id } },
-        { new: true }
-      );
-
-      // Get form submission data for context
-      const formData = await FormSubmission.findById(submissionId);
-      if (!formData) {
-        return NextResponse.json({ error: "Form submission not found" }, { status: 404 });
-      }
-
-      // Create initial AI message with form data context
-      const initialPrompt = createInitialPrompt(formData);
-      
-      try {
-        const initialResponse = await cohere.chat({
-          message: initialPrompt,
-          model: 'command-r-plus',
-          temperature: 0.7,
-          maxTokens: 500,
+      if (!conversation) {
+        // Create new conversation linked to submission
+        conversation = await Conversation.create({
+          user: user._id,
+          submission: submissionId,
+          messages: []
         });
 
-        const initialMessage = {
-          role: 'assistant',
-          content: initialResponse.text,
-          createdAt: new Date()
-        };
+        console.log("✅ New conversation created:", conversation._id);
 
-        conversation.messages.push(initialMessage);
-        await conversation.save();
-      } catch (aiError) {
-        console.error("AI Error:", aiError);
-        // Fallback message if AI fails
-        const fallbackMessage = {
-          role: 'assistant',
-          content: createFallbackMessage(formData),
-          createdAt: new Date()
-        };
-        conversation.messages.push(fallbackMessage);
-        await conversation.save();
+        // Update user's conversations array
+        await User.findByIdAndUpdate(
+          user._id,
+          { $push: { conversations: conversation._id } },
+          { new: true }
+        );
+
+        // Get form submission data for context
+        const formData = await FormSubmission.findById(submissionId);
+        if (!formData) {
+          return NextResponse.json({ error: "Form submission not found" }, { status: 404 });
+        }
+
+        // Create initial AI message
+        const initialPrompt = createInitialPrompt(formData);
+        
+        try {
+          const initialResponse = await cohere.chat({
+            message: initialPrompt,
+            model: 'command-r-plus',
+            temperature: 0.7,
+            maxTokens: 500,
+          });
+
+          const initialMessage = {
+            role: 'assistant',
+            content: initialResponse.text,
+            createdAt: new Date()
+          };
+
+          conversation.messages.push(initialMessage);
+          await conversation.save();
+        } catch (aiError) {
+          console.error("AI Error:", aiError);
+          const fallbackMessage = {
+            role: 'assistant',
+            content: createFallbackMessage(formData),
+            createdAt: new Date()
+          };
+          conversation.messages.push(fallbackMessage);
+          await conversation.save();
+        }
+      } else {
+        console.log("📞 Found existing conversation:", conversation._id);
       }
+    } else {
+      return NextResponse.json({ error: "Either conversationId or submissionId is required" }, { status: 400 });
     }
 
     // Add user message if provided
@@ -111,7 +122,7 @@ export async function POST(req: Request) {
 
         const aiResponse = await cohere.chat({
           message: message,
-          chatHistory: conversationHistory.slice(-10), // Keep last 10 messages for context
+          chatHistory: conversationHistory.slice(-10),
           model: 'command-r-plus',
           temperature: 0.7,
           maxTokens: 500,
@@ -141,7 +152,8 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       conversation: conversation,
-      messages: conversation.messages
+      messages: conversation.messages,
+      conversationId: conversation._id // Return the actual conversation ID
     });
 
   } catch (error) {
@@ -153,14 +165,15 @@ export async function POST(req: Request) {
   }
 }
 
-// GET endpoint to retrieve conversation
+// GET endpoint - Updated to find by submissionId
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const conversationId = searchParams.get('id');
+    const submissionId = searchParams.get('submissionId');
 
-    if (!conversationId) {
-      return NextResponse.json({ error: "Conversation ID required" }, { status: 400 });
+    if (!conversationId && !submissionId) {
+      return NextResponse.json({ error: "Conversation ID or Submission ID required" }, { status: 400 });
     }
 
     const clerkUser = await currentUser();
@@ -175,8 +188,20 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const conversation = await Conversation.findById(conversationId)
+    let conversation;
+
+    if (conversationId) {
+      // Find by conversation ID
+      conversation = await Conversation.findById(conversationId)
+        .populate('submission');
+    } else if (submissionId) {
+      // Find by submission ID
+      conversation = await Conversation.findOne({ 
+        submission: submissionId, 
+        user: user._id 
+      })
       .populate('submission');
+    }
 
     if (!conversation || conversation.user.toString() !== user._id.toString()) {
       return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
@@ -185,7 +210,8 @@ export async function GET(req: Request) {
     return NextResponse.json({
       success: true,
       conversation,
-      messages: conversation.messages
+      messages: conversation.messages,
+      conversationId: conversation._id
     });
 
   } catch (error) {
@@ -194,6 +220,7 @@ export async function GET(req: Request) {
   }
 }
 
+// Helper functions remain the same...
 function createInitialPrompt(formData: any): string {
   return `Welcome! I'm Smart-Harvest AI, your agricultural companion for Jharkhand. I've reviewed your farm details and I'm ready to provide personalized recommendations.
 

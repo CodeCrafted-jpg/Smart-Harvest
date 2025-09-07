@@ -220,7 +220,7 @@ const LandingPage: React.FC = () => {
       </motion.section>
 
       {/* About Section */}
-      <motion.section id="about" className="py-20 bg-[#F0FDF4]" initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.15 }} variants={containerVariants}>
+      <motion.section id="info" className="py-20 bg-[#F0FDF4]" initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.15 }} variants={containerVariants}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div className="grid lg:grid-cols-2 gap-12 items-center" variants={containerVariants}>
             <motion.div variants={fadeInUp}>

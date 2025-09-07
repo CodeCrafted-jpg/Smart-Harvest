@@ -23,7 +23,7 @@ const Navbar: React.FC = () => {
         { label: 'Home', href: '/', icon: <Home size={16} /> },
         { label: 'Features', href: '#features', icon: <Shield size={16} /> },
         { label: 'Quick-Chat', href: '/QuickChat', icon: <Info size={16} /> },
-        { label: ' Info', href: '#diseases', icon: <Heart size={16} /> },
+        { label: ' Info', href: '#info', icon: <Heart size={16} /> },
         { label: 'Chats', href: '/previous', icon: <Shield size={16} /> },
         { label: 'Contact', href: '#contact', icon: <Users size={16} /> },
     ];

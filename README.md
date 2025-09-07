@@ -1,4 +1,3 @@
-ChatGPT said:
 
 Got it 🚀 Let’s draft a professional README.md for your Smart Harvest project that matches your app branding, explains features, tech stack, and how to run it locally.
 

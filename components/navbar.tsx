@@ -237,7 +237,7 @@ const Navbar: React.FC = () => {
                                     </div>
                                     <button
                                         className="w-full flex items-center justify-center space-x-2 bg-gradient-to-r from-green-600 to-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 shadow-lg"
-                                        onClick={handleStartChat}
+                                        onClick={handleClick}
                                     >
                                         <MessageCircle size={16} />
                                         <span>Recommendation</span>

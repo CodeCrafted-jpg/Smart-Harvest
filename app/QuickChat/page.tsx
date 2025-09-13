@@ -7,6 +7,6 @@ export default function QuickChatPage() {
 
 // Optional: Add metadata
 export const metadata = {
-  title: 'Quick Chat - Smart-Harvest AI',
+  title: 'Quick-Chat - Smart-Harvest AI',
   description: 'Chat instantly with Smart-Harvest AI for quick agricultural advice and farming tips',
 };

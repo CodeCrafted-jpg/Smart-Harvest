@@ -25,7 +25,7 @@ const Navbar: React.FC = () => {
         { label: 'Home', href: '/', icon: <Home size={16} /> },
         { label: 'Features', href: '#features', icon: <Shield size={16} /> },
         { label: 'Quick-Chat', href: '/QuickChat', icon: <Info size={16} /> },
-        { label: 'Couching', href: '/VapiCards', icon: <Heart size={16} /> },
+        { label: 'Coaching', href: '/VapiCards', icon: <Heart size={16} /> },
         { label: 'Chats', href: '/previous', icon: <Shield size={16} /> },
         { label: 'Groups', href: '/groups', icon: <Users size={16} /> },
     ];
